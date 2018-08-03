@@ -28,7 +28,7 @@
 #include <cblas.h>
 #endif
 #ifndef USE_BLAS
-#include <Eigen/Dense>
+#include <Eigen/Core>
 #endif
 
 #include "CPUPipe.h"

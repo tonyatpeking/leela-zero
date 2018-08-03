@@ -31,7 +31,7 @@
 #include <boost/format.hpp>
 #include <boost/spirit/home/x3.hpp>
 #ifndef USE_BLAS
-#include <Eigen/Dense>
+#include <Eigen/Core>
 #endif
 
 #ifdef __APPLE__
