@@ -30,6 +30,9 @@
 #include <boost/utility.hpp>
 #include <boost/format.hpp>
 #include <boost/spirit/home/x3.hpp>
+#ifndef USE_BLAS
+#include <Eigen/Dense>
+#endif
 
 #ifdef __APPLE__
 #include <Accelerate/Accelerate.h>
@@ -62,8 +65,22 @@
 namespace x3 = boost::spirit::x3;
 using namespace Utils;
 
+#ifndef USE_BLAS
+// Eigen helpers
+template <typename T>
+using EigenVectorMap =
+    Eigen::Map<Eigen::Matrix<T, Eigen::Dynamic, 1>>;
+template <typename T>
+using ConstEigenVectorMap =
+    Eigen::Map<const Eigen::Matrix<T, Eigen::Dynamic, 1>>;
+template <typename T>
+using ConstEigenMatrixMap =
+    Eigen::Map<const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>>;
+#endif
+
 // Symmetry helper
-static std::array<std::array<int, BOARD_SQUARES>, Network::NUM_SYMMETRIES> symmetry_nn_idx_table;
+static std::array<std::array<int, BOARD_SQUARES>, Network::NUM_SYMMETRIES>
+    symmetry_nn_idx_table;
 
 float Network::benchmark_time(int centiseconds) {
     const auto cpus = cfg_num_threads;
@@ -467,6 +484,8 @@ void Network::initialize(int playouts, const std::string & weightsfile) {
     myprintf("BLAS core: MKL %s\n", Version.Processor);
 #endif
 #endif
+#else
+    myprintf("BLAS Core: built-in Eigen library.\n");
 #endif
 
 #ifdef USE_HALF
@@ -485,8 +504,6 @@ void Network::initialize(int playouts, const std::string & weightsfile) {
 #endif
 }
 
-#ifdef USE_BLAS
-
 template<unsigned int inputs,
          unsigned int outputs,
          bool ReLU,
@@ -496,13 +513,21 @@ std::vector<float> innerproduct(const std::vector<float>& input,
                                 const std::array<float, outputs>& biases) {
     std::vector<float> output(outputs);
 
+#ifdef USE_BLAS
     cblas_sgemv(CblasRowMajor, CblasNoTrans,
                 // M     K
                 outputs, inputs,
                 1.0f, &weights[0], inputs,
                 &input[0], 1,
                 0.0f, &output[0], 1);
-
+#else
+    EigenVectorMap<float> y(output.data(), outputs);
+    y.noalias() =
+        ConstEigenMatrixMap<float>(weights.data(),
+                                   inputs,
+                                   outputs).transpose()
+        * ConstEigenVectorMap<float>(input.data(), inputs);
+#endif
     const auto lambda_ReLU = [](const auto val) { return (val > 0.0f) ?
                                                           val : 0.0f; };
     for (unsigned int o = 0; o < outputs; o++) {
@@ -569,7 +594,6 @@ T relative_difference(const T a, const T b) {
     return fabs(fa - fb) / std::min(fa, fb);
 }
 
-#endif
 
 #ifdef USE_OPENCL_SELFCHECK
 void Network::compare_net_outputs(Netresult& data,

@@ -44,8 +44,21 @@
 #ifdef USE_OPENBLAS
 #include <cblas.h>
 #endif
+#ifndef USE_BLAS
+#include <Eigen/Dense>
+#endif
 
 const auto TUNER_FILE_LOCAL = std::string("leelaz_opencl_tuning");
+
+#ifndef USE_BLAS
+// Eigen helpers
+template <typename T>
+using EigenMatrixMap =
+    Eigen::Map<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>>;
+template <typename T>
+using ConstEigenMatrixMap =
+    Eigen::Map<const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>>;
+#endif
 
 template <typename net_t> static std::string getTunerKernel();
 template <typename net_t> static float getTunerMaxError();
@@ -87,7 +100,7 @@ static void sgemmBatched_ref(const std::vector<net_t>& a,
         auto offset_u = batch * m * k;
         auto offset_v = batch * n * k;
         auto offset_m = batch * m * n;
-
+#ifdef USE_BLAS
         cblas_sgemm(CblasRowMajor, CblasTrans, CblasNoTrans,
                     m, n, k,
                     1.0f,
@@ -95,6 +108,12 @@ static void sgemmBatched_ref(const std::vector<net_t>& a,
                     &br[offset_v], n,
                     0.0f,
                     &cr[offset_m], n);
+#else
+        auto C_mat = EigenMatrixMap<float>(cr.data() + offset_m, n, m);
+        C_mat.noalias() =
+           ConstEigenMatrixMap<float>(br.data() + offset_v, n, k)
+           * ConstEigenMatrixMap<float>(ar.data() + offset_u, m, k).transpose();
+#endif
     }
 
     std::copy(begin(cr), end(cr), begin(c));

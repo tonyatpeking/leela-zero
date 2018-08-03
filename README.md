@@ -295,7 +295,6 @@ If interrupted, training can be resumed with:
 - [ ] Implement GPU batching.
 - [ ] Parameter setting over GTP.
 - More backends:
-- [ ] Eigen based BLAS backend.
 - [ ] MKL-DNN based backend.
 - [ ] CUDA specific version using cuDNN.
 - [ ] AMD specific version using MIOpen.
@@ -319,5 +318,4 @@ https://medium.com/applied-data-science/alphago-zero-explained-in-one-diagram-36
 
 # License
 
-The code is released under the GPLv3 or later, except for ThreadPool.h, cl2.hpp,
-half.hpp and the clblast_level3 subdirs, which have specific licenses (compatible with GPLv3) mentioned in those files.
+The code is released under the GPLv3 or later, except for ThreadPool.h, cl2.hpp, half.hpp and the eigen and clblast_level3 subdirs, which have specific licenses (compatible with GPLv3) mentioned in those files.
